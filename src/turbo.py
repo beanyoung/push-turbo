@@ -13,11 +13,11 @@ from gevent import ssl, socket, select
 
 ERROR_RESPONSE_LENGTH = 6
 ERROR_RESPONSE_FORMAT = (
-     '!'  # network big-endian
-     'B'  # command
-     'B'  # status
-     'I'  # identifier
-    )
+    '!'  # network big-endian
+    'B'  # command
+    'B'  # status
+    'I'  # identifier
+)
 
 ENHANCED_NOTIFICATION_FORMAT = (
     '!'  # network big-endian
@@ -50,7 +50,7 @@ class APNsConnection(object):
         self.connection_alive = False
 
     def __del__(self):
-        self.disconnect();
+        self.disconnect()
 
     def connect(self):
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -86,7 +86,8 @@ class APNsConnection(object):
 
 
 class PayloadAlert(object):
-    def __init__(self, body=None, action_loc_key=None, loc_key=None,
+    def __init__(
+            self, body=None, action_loc_key=None, loc_key=None,
             loc_args=None, launch_image=None):
         super(PayloadAlert, self).__init__()
         self.body = body
@@ -112,7 +113,8 @@ class PayloadAlert(object):
 
 class Payload(object):
     """A class representing an APNs message payload"""
-    def __init__(self, alert=None, badge=None, sound=None, category=None,
+    def __init__(
+            self, alert=None, badge=None, sound=None, category=None,
             custom={}, content_available=False):
         super(Payload, self).__init__()
         self.alert = alert
@@ -148,7 +150,7 @@ class Payload(object):
     def json(self):
         return json.dumps(
             self.dict(),
-            separators=(',',':'),
+            separators=(',', ':'),
             ensure_ascii=False).encode('utf-8')
 
     def _check_size(self):
@@ -180,10 +182,11 @@ class GatewayConnection(APNsConnection):
         token = a2b_hex(token_hex)
         payload = payload.json()
         fmt = ENHANCED_NOTIFICATION_FORMAT % len(payload)
-        notification = pack(fmt, ENHANCED_NOTIFICATION_COMMAND, identifier,
+        notification = pack(
+            fmt, ENHANCED_NOTIFICATION_COMMAND, identifier,
             expiry, TOKEN_LENGTH, token, len(payload), payload)
         return notification
-         
+
     def send_notification(self, token_hex, payload, identifier=0, expiry=0):
         self.write(
             self.get_notification(token_hex, payload, identifier, expiry))
@@ -202,9 +205,9 @@ class Pipe(object):
 
     def push_worker(self):
         gateway_connection = GatewayConnection(
-            use_sandbox = self.use_sandbox,
-            cert_file = self.cert_file,
-            key_file = self.key_file,
+            use_sandbox=self.use_sandbox,
+            cert_file=self.cert_file,
+            key_file=self.key_file,
         )
         gateway_connection.connect()
         pushed_buffer = Queue(maxsize=1000)
@@ -225,7 +228,7 @@ class Pipe(object):
                     if len(buff) == ERROR_RESPONSE_LENGTH:
                         command, status, error_identifier = \
                             unpack(ERROR_RESPONSE_FORMAT, buff)
-                        if 8 == command: # there is error response from APNS
+                        if 8 == command:  # there is error response from APNS
                             found = False
                             while not pushed_buffer.empty():
                                 identifier, job = pushed_buffer.get()
