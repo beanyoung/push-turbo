@@ -7,8 +7,7 @@ import json
 from struct import pack, unpack
 
 import gevent
-from gevent.queue import Queue
-from gevent import ssl, socket, select
+from gevent import queue, ssl, socket, select
 
 
 ERROR_RESPONSE_LENGTH = 6
@@ -193,13 +192,16 @@ class GatewayConnection(APNsConnection):
 
 
 class Pipe(object):
-    def __init__(self, cert_file=None, key_file=None, use_sandbox=False):
+    def __init__(
+            self, cert_file=None, key_file=None,
+            use_sandbox=False, connection_count=1):
         super(Pipe, self).__init__()
         self.use_sandbox = use_sandbox
         self.cert_file = cert_file
         self.key_file = key_file
+        self.connection_count = connection_count
         # init queue
-        self.push_queue = Queue(maxsize=1000)
+        self.push_queue = queue.Queue(maxsize=self.connection_count*100)
         self.threads = []
         self.invalid = False
 
@@ -210,7 +212,7 @@ class Pipe(object):
             key_file=self.key_file,
         )
         gateway_connection.connect()
-        pushed_buffer = Queue(maxsize=1000)
+        pushed_buffer = queue.Queue(maxsize=100)
 
         push_id = 0
         while True:
@@ -233,7 +235,9 @@ class Pipe(object):
                             while not pushed_buffer.empty():
                                 identifier, job = pushed_buffer.get()
                                 if found:
-                                    self.send(job)
+                                    while self.push_queue.full():
+                                        gevent.sleep(1)
+                                    self.push_queue.put(job)
                                 elif identifier == error_identifier:
                                     found = True
                 except ssl.SSLError, e:
@@ -263,8 +267,8 @@ class Pipe(object):
                 except (socket.error, IOError), e:
                     gateway_connection.reconnect()
 
-    def start(self, worker_count=1):
-        for i in range(worker_count):
+    def start(self):
+        for i in range(self.connection_count):
             self.threads.append(gevent.spawn(self.push_worker))
 
     def stop(self):
@@ -277,6 +281,6 @@ class Pipe(object):
     def send(self, job):
         if self.invalid:
             return
-        while self.push_queue.full():
-            gevent.sleep(0.1)
+        while self.push_queue.qsize() > self.connection_count * 50:
+            gevent.sleep(1)
         self.push_queue.put(job)
