@@ -1,1 +1,2 @@
+beanstalkc==0.4.0
 gevent==1.0
