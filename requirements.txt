@@ -1,2 +1,3 @@
 beanstalkc==0.4.0
 gevent==1.0
+flask==0.10.1
