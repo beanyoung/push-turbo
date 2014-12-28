@@ -30,5 +30,5 @@ if __name__ == '__main__':
 
     worker = PushWorker(
         config.BEANSTALKD_HOST, config.BEANSTALKD_PORT,
-        'push', config.WORKER_COUNT)
+        ['push'], config.WORKER_COUNT)
     worker.run()

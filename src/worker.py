@@ -1,8 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import pprint
-
 import gevent
 from gevent import monkey
 monkey.patch_all()
@@ -29,7 +27,6 @@ class Worker(object):
                     beanstalk.watch(tube)
 
                 while True:
-                    pprint.pprint(beanstalk.stats_tube('default'))
                     job = beanstalk.reserve(timeout=10)
                     if not job:
                         gevent.sleep(2)
