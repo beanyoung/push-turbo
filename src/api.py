@@ -30,12 +30,12 @@ def push_jobs():
 
     device_tokens = request.form.get('device_tokens').split(',')
     if len(device_tokens) < 5:
-        g.beanstalk.watch('push')
+        g.beanstalk.use('push')
         for device_token in device_tokens:
             job['device_token'] = device_token
             g.beanstalk.put(json.dumps(job))
     else:
-        g.beanstalk.watch('batch_push')
+        g.beanstalk.use('batch_push')
         job['device_tokens'] = device_tokens
         g.beanstalk.put(json.dumps(job))
     return jsonify(dict())
