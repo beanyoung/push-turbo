@@ -23,7 +23,6 @@ class PushWorker(Worker):
 
 if __name__ == '__main__':
     for app_name, key_file in config.APPS.items():
-        print key_file
         pipes[app_name] = Pipe(
             key_file[0], key_file[1], False, config.PIPE_CONNECTION_COUNT)
         pipes[app_name].start()
