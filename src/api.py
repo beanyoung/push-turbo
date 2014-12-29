@@ -22,25 +22,15 @@ def before_request():
 
 @api.route('/push', methods=['POST'])
 def push_jobs():
-    job = dict()
-    job['app_name'] = request.form.get('app_name')
-    job['payload'] = dict()
-    job['payload']['alert'] = request.form.get('alert')
-    job['payload']['sound'] = request.form.get('sound', 'default')
-    job['payload']['badge'] = int(request.form.get('badge', '1'))
-    job['payload']['custom'] = json.loads(request.form.get('custom', '{}'))
-    priority = priorities.get(request.form.get('priority', 'low'))
-
-    device_tokens = request.form.get('device_tokens').split(',')
-    if len(device_tokens) < 5:
+    jobs = request.json
+    if len(jobs) < 5:
         g.beanstalk.use('push')
-        for device_token in device_tokens:
-            job['device_token'] = device_token
+        for job in jobs:
+            priority = priorities.get(job.get('priority', 'low'))
             g.beanstalk.put(json.dumps(job), priority=priority)
     else:
         g.beanstalk.use('batch_push')
-        job['device_tokens'] = device_tokens
-        g.beanstalk.put(json.dumps(job), priority=priority)
+        g.beanstalk.put(json.dumps(jobs))
     return jsonify(dict())
 
 
