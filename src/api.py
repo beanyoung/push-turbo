@@ -9,8 +9,6 @@ from flask import Blueprint, jsonify, g, request
 import config
 
 
-priorities = dict(low=4294967295, normal=2147483647, high=0)
-
 api = Blueprint('api', __name__)
 
 
@@ -24,12 +22,12 @@ def before_request():
 def push_jobs():
     jobs = request.json
     if len(jobs) < 5:
-        g.beanstalk.use('push')
+        g.beanstalk.use(config.PUSH_TUBE)
         for job in jobs:
-            priority = priorities.get(job.get('priority', 'low'))
+            priority = config.PRIORITIES.get(job.get('priority', 'low'))
             g.beanstalk.put(json.dumps(job), priority=priority)
     else:
-        g.beanstalk.use('batch_push')
+        g.beanstalk.use(config.BATCH_PUSH_TUBE)
         g.beanstalk.put(json.dumps(jobs))
     return jsonify(dict())
 
@@ -37,4 +35,4 @@ def push_jobs():
 @api.route('/push_stats', methods=['GET'])
 def push_stats():
     g.beanstalk.watch('push')
-    return jsonify(g.beanstalk.stats_tube('push'))
+    return jsonify(g.beanstalk.stats_tube(config.PUSH_TUBE))
