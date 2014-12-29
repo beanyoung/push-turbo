@@ -25,7 +25,7 @@ class Worker(object):
                         beanstalkc.Connection(self.host, self.port)
                 for tube in self.tubes:
                     beanstalk.watch(tube)
-                for tube in beanstalk.warning():
+                for tube in beanstalk.watching():
                     if tube not in self.tubes:
                         beanstalk.ignore(tube)
 
