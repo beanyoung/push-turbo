@@ -25,6 +25,9 @@ class Worker(object):
                         beanstalkc.Connection(self.host, self.port)
                 for tube in self.tubes:
                     beanstalk.watch(tube)
+                for tube in beanstalk.warning():
+                    if tube not in self.tubes:
+                        beanstalk.ignore(tube)
 
                 while True:
                     job = beanstalk.reserve(timeout=10)
