@@ -211,7 +211,12 @@ class Pipe(object):
             cert_file=self.cert_file,
             key_file=self.key_file,
         )
-        gateway_connection.connect()
+        try:
+            gateway_connection.connect()
+        except ssl.SSLError, e:
+            if e.errno == ssl.SSL_ERROR_SSL:
+                self.invalid = True
+            return
         pushed_buffer = queue.Queue(maxsize=100)
 
         push_id = 0
