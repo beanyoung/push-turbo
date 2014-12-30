@@ -206,6 +206,8 @@ class Pipe(object):
         self.invalid = False
 
     def push_worker(self):
+        if self.invalid:
+            return
         gateway_connection = GatewayConnection(
             use_sandbox=self.use_sandbox,
             cert_file=self.cert_file,
