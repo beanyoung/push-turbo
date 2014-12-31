@@ -4,6 +4,7 @@
 from binascii import a2b_hex, b2a_hex
 import copy
 import json
+import logging
 from struct import pack, unpack
 
 import gevent
@@ -213,26 +214,20 @@ class Pipe(object):
             cert_file=self.cert_file,
             key_file=self.key_file,
         )
-        try:
-            gateway_connection.connect()
-        except ssl.SSLError, e:
-            if e.errno == ssl.SSL_ERROR_SSL:
-                self.invalid = True
-            return
         pushed_buffer = queue.Queue(maxsize=100)
 
         push_id = 0
         while True:
             if self.invalid:
                 return
-
-            rlist, wlist, _ = select.select(
-                [gateway_connection._ssl],
-                [gateway_connection._ssl],
-                [],
-                10)
-            if rlist:
-                try:
+            try:
+                gateway_connection.reconnect()
+                rlist, wlist, _ = select.select(
+                    [gateway_connection._ssl],
+                    [gateway_connection._ssl],
+                    [],
+                    10)
+                if rlist:
                     buff = gateway_connection.read(ERROR_RESPONSE_LENGTH)
                     if len(buff) == ERROR_RESPONSE_LENGTH:
                         command, status, error_identifier = \
@@ -247,15 +242,8 @@ class Pipe(object):
                                     self.push_queue.put(job)
                                 elif identifier == error_identifier:
                                     found = True
-                except ssl.SSLError, e:
-                    if e.errno == ssl.SSL_ERROR_SSL:
-                        self.invalid = True
-                except (socket.error, IOError), e:
-                    pass
-                gateway_connection.reconnect()
-            elif wlist:
+                elif wlist:
                 job = self.push_queue.get()
-                try:
                     push_id += 1
                     gateway_connection.send_notification(
                         job['device_token'],
@@ -266,13 +254,15 @@ class Pipe(object):
                     pushed_buffer.put((push_id, job))
                     gevent.sleep(0.1)
                     continue
-                except ssl.SSLError, e:
-                    if e.errno == ssl.SSL_ERROR_SSL:
-                        raise
-                        self.invalid = True
-                    gateway_connection.reconnect()
-                except (socket.error, IOError), e:
-                    gateway_connection.reconnect()
+            except ssl.SSLError, e:
+                if e.errno == ssl.SSL_ERROR_SSL:
+                    self.invalid = True
+            except (socket.error, IOError), e:
+                pass
+            except Exception, e:
+                logging.error(
+                    (self.key_file, self.invalid, self.push_queue.qsize(), e))
+
 
     def start(self):
         for i in range(self.connection_count):
@@ -286,6 +276,7 @@ class Pipe(object):
                 break
 
     def send(self, job):
+        logging.error((self.key_file, self.invalid, self.push_queue.qsize()))
         if self.invalid:
             return
         while self.push_queue.qsize() > self.connection_count * 50:
