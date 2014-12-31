@@ -243,7 +243,7 @@ class Pipe(object):
                                 elif identifier == error_identifier:
                                     found = True
                 elif wlist:
-                job = self.push_queue.get()
+                    job = self.push_queue.get()
                     push_id += 1
                     gateway_connection.send_notification(
                         job['device_token'],
