@@ -251,7 +251,14 @@ class Pipe(object):
                                 'unexcepted read buf length'))
                             break
                     elif wlist:
-                        job = self.push_queue.get()
+                        try:
+                            job = self.push_queue.get_nowait()
+                        except queue.Empty, e:
+                            logging.error((
+                                self.key_file,
+                                'sleepy'))
+                            gevent.sleep(5)
+                            continue
                         push_id += 1
                         gateway_connection.send_notification(
                             job['device_token'],
@@ -261,15 +268,6 @@ class Pipe(object):
                             pushed_buffer.get()
                         pushed_buffer.put((push_id, job))
                         gevent.sleep(0.1)
-                    else:
-                        gateway_connection.disconnect()
-                        while not self.push_queue.qsize():
-                            gevent.sleep(5)
-                            logging.error((
-                                self.key_file,
-                                self.invalid,
-                                self.push_queue.qsize(),
-                                'waiting for new job'))
 
             except ssl.SSLError, e:
                 if e.errno == ssl.SSL_ERROR_SSL:
