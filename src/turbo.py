@@ -243,12 +243,18 @@ class Pipe(object):
                                         self.push_queue.put(job)
                                     elif identifier == error_identifier:
                                         found = True
+                        elif len(buff) == 0:
+                            logging.error((
+                                self.key_file,
+                                self.invalid,
+                                'closed by server'))
+                            break
                         else:
                             logging.error((
                                 self.key_file,
                                 self.invalid,
-                                self.push_queue.qsize(),
-                                'unexcepted read buf length'))
+                                'unexcepted read buf length',
+                                len(buff)))
                             break
                     elif wlist:
                         try:
