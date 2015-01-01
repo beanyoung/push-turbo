@@ -261,6 +261,16 @@ class Pipe(object):
                             pushed_buffer.get()
                         pushed_buffer.put((push_id, job))
                         gevent.sleep(0.1)
+                    else:
+                        gateway_connection.disconnect()
+                        while not self.push_queue.qsize():
+                            gevent.sleep(5)
+                            logging.error((
+                                self.key_file,
+                                self.invalid,
+                                self.push_queue.qsize(),
+                                'waiting for new job'))
+
             except ssl.SSLError, e:
                 if e.errno == ssl.SSL_ERROR_SSL:
                     self.invalid = True
