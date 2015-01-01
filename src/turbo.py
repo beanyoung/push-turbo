@@ -252,12 +252,11 @@ class Pipe(object):
                             break
                     elif wlist:
                         try:
-                            job = self.push_queue.get_nowait()
+                            job = self.push_queue.get(timeout=60)
                         except queue.Empty, e:
                             logging.error((
                                 self.key_file,
                                 'sleepy'))
-                            gevent.sleep(5)
                             continue
                         push_id += 1
                         gateway_connection.send_notification(
