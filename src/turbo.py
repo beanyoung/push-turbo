@@ -233,6 +233,14 @@ class Pipe(object):
                         if len(buff) == ERROR_RESPONSE_LENGTH:
                             command, status, error_identifier = \
                                 unpack(ERROR_RESPONSE_FORMAT, buff)
+                            logging.error((
+                                self.key_file,
+                                self.invalid,
+                                'error response',
+                                command,
+                                status,
+                                error_identifier))
+
                             if 8 == command:
                                 found = False
                                 while not pushed_buffer.empty():
