@@ -222,38 +222,45 @@ class Pipe(object):
                 return
             try:
                 gateway_connection.reconnect()
-                rlist, wlist, _ = select.select(
-                    [gateway_connection._ssl],
-                    [gateway_connection._ssl],
-                    [],
-                    10)
-                if rlist:
-                    buff = gateway_connection.read(ERROR_RESPONSE_LENGTH)
-                    if len(buff) == ERROR_RESPONSE_LENGTH:
-                        command, status, error_identifier = \
-                            unpack(ERROR_RESPONSE_FORMAT, buff)
-                        if 8 == command:  # there is error response from APNS
-                            found = False
-                            while not pushed_buffer.empty():
-                                identifier, job = pushed_buffer.get()
-                                if found:
-                                    while self.push_queue.full():
-                                        gevent.sleep(1)
-                                    self.push_queue.put(job)
-                                elif identifier == error_identifier:
-                                    found = True
-                elif wlist:
-                    job = self.push_queue.get()
-                    push_id += 1
-                    gateway_connection.send_notification(
-                        job['device_token'],
-                        Payload(**job['payload']),
-                        push_id)
-                    if pushed_buffer.full():
-                        pushed_buffer.get()
-                    pushed_buffer.put((push_id, job))
-                    gevent.sleep(0.1)
-                    continue
+                while True:
+                    rlist, wlist, _ = select.select(
+                        [gateway_connection._ssl],
+                        [gateway_connection._ssl],
+                        [],
+                        10)
+                    if rlist:
+                        buff = gateway_connection.read(ERROR_RESPONSE_LENGTH)
+                        if len(buff) == ERROR_RESPONSE_LENGTH:
+                            command, status, error_identifier = \
+                                unpack(ERROR_RESPONSE_FORMAT, buff)
+                            if 8 == command:
+                                found = False
+                                while not pushed_buffer.empty():
+                                    identifier, job = pushed_buffer.get()
+                                    if found:
+                                        while self.push_queue.full():
+                                            gevent.sleep(1)
+                                        self.push_queue.put(job)
+                                    elif identifier == error_identifier:
+                                        found = True
+                        else:
+                            logging.error((
+                                self.key_file,
+                                self.invalid,
+                                self.push_queue.qsize(),
+                                'unexcepted read buf length'))
+                            break
+                    elif wlist:
+                        job = self.push_queue.get()
+                        push_id += 1
+                        gateway_connection.send_notification(
+                            job['device_token'],
+                            Payload(**job['payload']),
+                            push_id)
+                        if pushed_buffer.full():
+                            pushed_buffer.get()
+                        pushed_buffer.put((push_id, job))
+                        gevent.sleep(0.1)
             except ssl.SSLError, e:
                 if e.errno == ssl.SSL_ERROR_SSL:
                     self.invalid = True
