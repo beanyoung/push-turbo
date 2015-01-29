@@ -17,7 +17,8 @@ class BatchPushWorker(Worker):
         beanstalk.use(config.PUSH_TUBE)
         for job in jobs:
             priority = config.PRIORITIES.get(job.get('priority', 'low'))
-            beanstalk.put(json.dumps(job), priority=priority)
+            delay = job.get('delay', 0)
+            beanstalk.put(json.dumps(job), priority=priority, delay=delay)
         beanstalk.close()
 
 

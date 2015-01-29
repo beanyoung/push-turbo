@@ -25,7 +25,8 @@ def push_jobs():
         g.beanstalk.use(config.PUSH_TUBE)
         for job in jobs:
             priority = config.PRIORITIES.get(job.get('priority', 'low'))
-            g.beanstalk.put(json.dumps(job), priority=priority)
+            delay = job.get('delay', 0)
+            g.beanstalk.put(json.dumps(job), priority=priority, delay=delay)
     else:
         g.beanstalk.use(config.BATCH_PUSH_TUBE)
         g.beanstalk.put(json.dumps(jobs))
