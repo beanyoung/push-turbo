@@ -16,3 +16,5 @@ PRIORITIES = dict(low=4294967295, normal=2147483647, high=0)
 
 PUSH_TUBE = 'push'
 BATCH_PUSH_TUBE = 'batch_push'
+
+LOGGING_LEVEL = 10
