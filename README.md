@@ -1,7 +1,5 @@
 # TODO
 
-* multi gateway
-* apns
-* auto connection
 * dashboard
 * tests
+* auto scale
