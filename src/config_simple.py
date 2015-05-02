@@ -18,3 +18,6 @@ PUSH_TUBE = 'push'
 BATCH_PUSH_TUBE = 'batch_push'
 
 LOGGING_LEVEL = 10
+
+APNS_HOST = '127.0.0.1'
+APNS_PORT = 2190
