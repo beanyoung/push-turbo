@@ -6,10 +6,12 @@ monkey.patch_all()
 
 import json
 import logging
+import Queue
+import select
+import socket
+import ssl
 import time
 from threading import Thread
-import select
-import ssl
 
 import beanstalkc
 
@@ -21,18 +23,18 @@ PRIORITIES = dict(low=4294967295, normal=2147483647, high=0)
 
 class Pipe(object):
     def __init__(
-            self, beanstalkd_host, beanstalkd_port, watching_tube,
+            self, beanstalkd_host, beanstalkd_port, tube,
             gateway_host, gateway_port, key_file, cert_file):
         self.beanstalkd_host = beanstalkd_host
         self.beanstalkd_port = beanstalkd_port
-        self.watching_tube = watching_tube
+        self.tube = tube
         self.gateway_host = gateway_host
         self.gateway_port = gateway_port
         self.key_file = key_file
         self.cert_file = cert_file
 
         self.push_id = 0
-        self.pushed_buff = []
+        self.pushed_buffer = Queue.Queue(maxsize=1000)
         self.beanstalk = None
         self.gateway_connection = None
         self.gateway_invalid = False
@@ -46,13 +48,19 @@ class Pipe(object):
 
                 self.beanstalk = beanstalkc.Connection(
                     self.beanstalkd_host, self.beanstalkd_port)
-                logging.info('Connect to %s:%s success' % (host, port))
-                self.beanstalk.watch(watching_tube)
+                logging.info(
+                    '%s: Connect to %s:%s success' % (
+                        self.tube, self.beanstalkd_host, self.beanstalkd_port))
+                self.beanstalk.watch(self.tube)
                 for tube in self.beanstalk.watching():
-                    if tube != watching_tube:
+                    if tube != self.tube:
                         self.beanstalk.ignore(tube)
+                self.beanstalk.use(tube)
+                return
             except beanstalkc.SocketError:
-                logging.warning('Connect to %s:%s failed' % (host, port))
+                logging.warning(
+                    '%s: Connect to %s:%s failed' % (
+                        self.tube, self.beanstalkd_host, self.beanstalkd_port))
                 time.sleep(2)
                 continue
 
@@ -67,59 +75,81 @@ class Pipe(object):
                         key_file=self.key_file,
                     )
                 else:
-                    gateway_connection.reconnect()
+                    self.gateway_connection.reconnect()
+                return
             except ssl.SSLError as e:
                 if e.errno == ssl.SSL_ERROR_SSL:
                     self.gateway_invalid = True
                     time.sleep(3600)
-                    logging.warning('Invalid key: %s' % self.key_file)
+                    logging.warning('%s: Invalid key' % self.tube)
             except (socket.error, IOError) as e:
-                pass
-            logging.warning('Connect to gateway error')
+                logging.warning(
+                    '%s: Gateway connect error %s' % (self.tube, e))
             time.sleep(2)
             continue
 
 
     def process_gateway_input(self):
-        pass
+        buff = self.gateway_connection.read(apns.ERROR_RESPONSE_LENGTH)
+        if len(buff) == apns.ERROR_RESPONSE_LENGTH:
+            command, status, error_identifier = \
+                apns.unpack(apns.ERROR_RESPONSE_FORMAT, buff)
+
+            if 8 == command:
+                found = False
+                while not self.pushed_buffer.empty():
+                    identifier, job = self.pushed_buffer.get()
+                    if found:
+                        logging.debug(
+                            '%s: Reput failed job %s' % (self.tube, identifier))
+                        self.beanstalk.put(json.dumps(job))
+                    elif identifier == error_identifier:
+                        logging.debug(
+                            '%s: Found error identifier %s' % (self.tube, identifier))
+                        found = True
+        elif len(buff) == 0:
+            logging.info('%s: Close by server' % self.tube)
+        else:
+            logging.error(
+                '%s: Unexcepted read buf size %s' % (self.tube, len(buf)))
 
     def push_job(self):
         job = self.beanstalk.reserve(timeout=2)
         if not job:
-            logging.info('No job found')
+            logging.debug('%s: No job found' % self.tube)
             return
-        logging.info('Reserved job: %s' % job.jid)
-        logging.debug('Reserved job: %s' % job.body)
+        logging.debug('%s: Reserved job: %s' % (self.tube, job.body))
         try:
             job_body = json.loads(job.body)
         except ValueError:
-            logging.error('Failed to loads job body: %s'% job.body)
+            logging.error('%s: Failed to loads job body: %s'% (self.tube, job.body))
             job.bury()
 
         # push job
         self.push_id += 1
         self.gateway_connection.send_notification(
             job_body['device_token'],
-            Payload(**job_body['payload']),
+            apns.Payload(**job_body['payload']),
             self.push_id)
         if self.pushed_buffer.full():
             self.pushed_buffer.get()
-        self.pushed_buffer.put((push_id, job_body))
+        self.pushed_buffer.put((self.push_id, job_body))
 
         job.delete()
-        logging.info('Delete job: %s' % job.jid)
-        logging.debug('Delete job: %s' % job.body)
+        logging.debug('%s: Delete job: %s %s' % (self.tube, job.jid, job.body))
 
 
     def reserve_and_push(self):
         while True:
             rlist, wlist, _ = select.select(
-                [gateway_connection.connection()],
-                [gateway_connection.connection()],
+                [self.gateway_connection.connection()],
+                [self.gateway_connection.connection()],
                 [],
                 10)
             if rlist:
+                logging.debug('%s: Start Reading from gateway' % self.tube)
                 self.process_gateway_input()
+                self.gateway_connection.reconnect()
             elif wlist:
                 self.push_job()
 
@@ -138,11 +168,12 @@ class Pipe(object):
 
 if __name__ == '__main__':
     import config
-    logger = logging.getLogger()
-    logger.setLevel(config.LOGGING_LEVEL)
-    key_file = ''
-    cert_file = ''
-    pipe = Pipe(
-        config.BEANSTALKD_HOST, config.BEANSTALKD_PORT, config.PUSH_TUBE,
-        config.APNS_HOST, config.APNS_PORT, key_file, cert_file)
-    pipe.run()
+    logging.basicConfig(format='%(asctime)s - %(levelname)- %(threadName)s.%(funcName)s - %(message)s', level=config.LOGGING_LEVEL)
+    key_file = '../pems/martin_new_key.pem'
+    cert_file = '../pems/martin_new_cert.pem'
+    for i in range(10):
+        pipe = Pipe(
+            config.BEANSTALKD_HOST, config.BEANSTALKD_PORT, config.PUSH_TUBE,
+            config.APNS_HOST, config.APNS_PORT, key_file, cert_file)
+        t = Thread(target=pipe.run, name=str(i))
+        t.start()
