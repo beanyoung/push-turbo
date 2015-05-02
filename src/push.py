@@ -107,7 +107,7 @@ class Pipe(object):
             logging.debug('Unexcepted read buf size %s' % len(buf))
 
     def push_job(self):
-        job = self.beanstalk.reserve(timeout=2)
+        job = self.beanstalk.reserve(timeout=10)
         if not job:
             logging.debug('No job found')
             return
