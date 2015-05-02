@@ -6,6 +6,7 @@ monkey.patch_all()
 
 import json
 import logging
+from threading import Thread
 import time
 
 import beanstalkc
@@ -65,8 +66,11 @@ def batch_push(host, port, watching_tube, using_tube):
 if __name__ == '__main__':
     logging.basicConfig(
         format=config.LOGGING_FORMAT, level=config.LOGGING_LEVEL)
-    batch_push(
+    args = (
         config.BEANSTALKD_HOST,
         config.BEANSTALKD_PORT,
         config.BATCH_PUSH_TUBE,
         config.PUSH_TUBE)
+    for i in range(config.BATCH_WORKER_COUNT):
+        t = Thread(target=batch_push, args=args, name='worker.%d' % i)
+        t.start()
