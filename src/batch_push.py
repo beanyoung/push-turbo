@@ -1,31 +1,31 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import json
-import logging
-
-import beanstalkc
 import gevent
 from gevent import monkey
 monkey.patch_all()
 
+import json
+import logging
 
-PRIORITIES = dict(low=4294967295, normal=2147483647, high=0)
+import beanstalkc
+
+import config
 
 
 def batch_push(host, port, watching_tube, using_tube):
+    logging.debug('Starting')
     while True:
         # init beanstalk
         try:
             beanstalk = beanstalkc.Connection(host, port)
-            logging.info('Connect to %s:%s success' % (host, port))
+            logging.debug('Connect to %s:%s success' % (host, port))
             beanstalk.watch(watching_tube)
             for tube in beanstalk.watching():
                 if tube != watching_tube:
                     beanstalk.ignore(tube)
-            beanstalk.use(using_tube)
         except beanstalkc.SocketError:
-            logging.warning('Connect to %s:%s failed' % (host, port))
+            logging.debug('Connect to %s:%s failed' % (host, port))
             gevent.sleep(2)
             continue
 
@@ -33,36 +33,38 @@ def batch_push(host, port, watching_tube, using_tube):
             while True:
                 job = beanstalk.reserve(timeout=10)
                 if not job:
-                    logging.info('No job found. Sleep 2 seconds')
+                    logging.debug('No job found. Sleep 2 seconds')
                     gevent.sleep(2)
                     continue
-                logging.info('Reserved job: %s' % job.jid)
-                logging.debug('Reserved job: %s' % job.body)
+                logging.debug('Reserved job: %s %s' % (job.jid, job.body))
                 try:
-                    push_tasks = json.loads(job.body)
+                    push_jobs = json.loads(job.body)
                 except ValueError:
-                    logging.error('Failed to loads job body: %s'% job.body)
+                    logging.debug(
+                        'Failed to load job body: %s %s' % (job.jid, job.body))
                     job.bury()
 
-                for push_task in push_tasks:
-                    priority = PRIORITIES.get(push_task.get('priority', 'low'))
-                    delay = push_task.get('delay', 0)
+                current_using = ''
+                for push_job in push_jobs:
+                    priority = config.PRIORITIES.get(
+                        push_job.get('priority', 'low'))
+                    delay = push_job.get('delay', 0)
+                    next_using = config.PUSH_TUBE % push_job['app_name']
+                    if next_using != current_using:
+                        beanstalk.use(next_using)
                     beanstalk.put(
-                        json.dumps(push_task), priority=priority, delay=delay)
+                        json.dumps(push_job), priority=priority, delay=delay)
                 job.delete()
-                logging.info('Delete job: %s' % job.jid)
-                logging.debug('Delete job: %s' % job.body)
+                logging.debug('Delete job: %s %s' % (job.jid, job.body))
         except beanstalkc.SocketError:
-            logging.warning('Server %s:%s is down' % (host, port))
+            logging.debug('Server %s:%s is down' % (host, port))
             gevent.sleep(2)
             continue
 
 
-
 if __name__ == '__main__':
-    import config
-    logger = logging.getLogger()
-    logger.setLevel(config.LOGGING_LEVEL)
+    logging.basicConfig(
+        format=config.LOGGING_FORMAT, level=config.LOGGING_LEVEL)
     batch_push(
         config.BEANSTALKD_HOST,
         config.BEANSTALKD_PORT,

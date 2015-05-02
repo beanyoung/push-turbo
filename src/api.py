@@ -21,9 +21,18 @@ def before_request():
 @api.route('/push', methods=['POST'])
 def push_jobs():
     jobs = request.json
+    for job in jobs:
+        if job['app_name'] not in config.APPS:
+            ret = dict(
+                error='unknown_app_name',
+                detail='Unknown app name %s' % job['app_name'])
+            return jsonify(ret), 400
+
     if len(jobs) < 5:
-        g.beanstalk.use(config.PUSH_TUBE)
         for job in jobs:
+            if job['app_name'] not in config.APPS:
+                continue
+            g.beanstalk.use(config.PUSH_TUBE % job['app_name'])
             priority = config.PRIORITIES.get(job.get('priority', 'low'))
             delay = job.get('delay', 0)
             g.beanstalk.put(json.dumps(job), priority=priority, delay=delay)
