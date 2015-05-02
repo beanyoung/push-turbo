@@ -175,6 +175,6 @@ if __name__ == '__main__':
             pipe = Pipe(
                 config.BEANSTALKD_HOST, config.BEANSTALKD_PORT,
                 config.PUSH_TUBE % app_name, config.APNS_HOST,
-                config.APNS_PORT, pem_file[0], pem_file[1])
+                config.APNS_PORT, pem_file[1], pem_file[0])
             t = Thread(target=pipe.run, name='%s.%d' % (app_name, i))
             t.start()
