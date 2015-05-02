@@ -44,5 +44,8 @@ def push_jobs():
 
 @api.route('/push_stats', methods=['GET'])
 def push_stats():
-    g.beanstalk.watch('push')
-    return jsonify(g.beanstalk.stats_tube(config.PUSH_TUBE))
+    ret = g.beanstalk.stats()
+    ret['tubes'] = []
+    for app_name in config.APPS.keys():
+        ret['tubes'].append(g.beanstalk.stats_tube(config.PUSH_TUBE % app_name))
+    return jsonify(ret)
