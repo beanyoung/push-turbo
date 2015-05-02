@@ -1,12 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import gevent
 from gevent import monkey
 monkey.patch_all()
 
 import json
 import logging
+import time
 
 import beanstalkc
 
@@ -26,7 +26,7 @@ def batch_push(host, port, watching_tube, using_tube):
                     beanstalk.ignore(tube)
         except beanstalkc.SocketError:
             logging.debug('Connect to %s:%s failed' % (host, port))
-            gevent.sleep(2)
+            time.sleep(2)
             continue
 
         try:
@@ -34,7 +34,7 @@ def batch_push(host, port, watching_tube, using_tube):
                 job = beanstalk.reserve(timeout=10)
                 if not job:
                     logging.debug('No job found. Sleep 2 seconds')
-                    gevent.sleep(2)
+                    time.sleep(2)
                     continue
                 logging.debug('Reserved job: %s %s' % (job.jid, job.body))
                 try:
@@ -58,7 +58,7 @@ def batch_push(host, port, watching_tube, using_tube):
                 logging.debug('Delete job: %s %s' % (job.jid, job.body))
         except beanstalkc.SocketError:
             logging.debug('Server %s:%s is down' % (host, port))
-            gevent.sleep(2)
+            time.sleep(2)
             continue
 
 
