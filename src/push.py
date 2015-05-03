@@ -22,7 +22,7 @@ import config
 class Pipe(object):
     def __init__(
             self, beanstalkd_host, beanstalkd_port, tube,
-            gateway_host, gateway_port, key_file, cert_file):
+            gateway_host, gateway_port, key_file, cert_file, master_worker):
         self.beanstalkd_host = beanstalkd_host
         self.beanstalkd_port = beanstalkd_port
         self.tube = tube
@@ -30,8 +30,10 @@ class Pipe(object):
         self.gateway_port = gateway_port
         self.key_file = key_file
         self.cert_file = cert_file
+        self.master_worker = master_worker
 
         self.push_id = 0
+        self.last_push_time = 0
         self.pushed_buffer = Queue.Queue(maxsize=1000)
         self.beanstalk = None
         self.gateway_connection = None
@@ -135,6 +137,7 @@ class Pipe(object):
             self.pushed_buffer.get()
         logging.debug('Enqueue pushed buffer: %s %s' % (job.jid, job.body))
         self.pushed_buffer.put((self.push_id, job_body))
+        self.last_push_time = time.time()
 
         logging.debug('Delete job: %s %s' % (job.jid, job.body))
         job.delete()
@@ -153,18 +156,42 @@ class Pipe(object):
             elif wlist:
                 self.push_job()
 
+            if self.ok_to_stop():
+                break
+
+    def need_to_start(self):
+        if self.master_worker:
+            return True
+        tube_stat = self.beanstalk.stats_tube(self.tube)
+        if tube_stat['current-jobs-ready'] > 100:
+            return True
+        return False
+
+    def ok_to_stop(self):
+        if self.master_worker:
+            return False
+        if time.time() - self.last_push_time < 5:
+            return True
+        return False
+
     def run(self):
-        logging.info('Start')
         self.init_beanstalk()
-        self.init_gateway()
 
         while True:
             try:
+                if not self.need_to_start():
+                    logging.debug('Sleepy')
+                    time.sleep(30)
+                    continue
+                logging.debug('Start to reserve and push')
+                self.init_gateway()
                 self.reserve_and_push()
+                self.gateway_connection.disconnect()
+                logging.debug('Stop to reserve and push')
             except beanstalkc.SocketError:
                 self.init_beanstalk()
             except (ssl.SSLError, socket.error, IOError) as e:
-                self.init_gateway()
+                pass
 
 
 if __name__ == '__main__':
@@ -175,6 +202,6 @@ if __name__ == '__main__':
             pipe = Pipe(
                 config.BEANSTALKD_HOST, config.BEANSTALKD_PORT,
                 config.PUSH_TUBE % app_name, config.APNS_HOST,
-                config.APNS_PORT, pem_file[1], pem_file[0])
+                config.APNS_PORT, pem_file[1], pem_file[0], i == 0)
             t = Thread(target=pipe.run, name='%s.%d' % (app_name, i))
             t.start()
