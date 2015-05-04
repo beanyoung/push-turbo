@@ -191,6 +191,12 @@ class PayloadTooLargeError(StandardError):
         self.payload_size = payload_size
 
 
+class InvalidTokenError(StandardError):
+    def __init__(self, token_hex):
+        super(InvalidTokenError, self).__init__()
+        self.token_hex = token_hex
+
+
 class GatewayConnection(APNsConnection):
     def __init__(self, host, port, **kwargs):
         super(GatewayConnection, self).__init__(**kwargs)
@@ -198,7 +204,10 @@ class GatewayConnection(APNsConnection):
         self.port = port
 
     def get_notification(self, token_hex, payload, identifier, expiry):
-        token = a2b_hex(token_hex)
+        try:
+            token = a2b_hex(token_hex)
+        except ValueError:
+            raise InvalidTokenError(token_hex)
         payload = payload.json()
         fmt = ENHANCED_NOTIFICATION_FORMAT % len(payload)
         notification = pack(

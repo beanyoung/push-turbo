@@ -129,6 +129,8 @@ class Pipe(object):
                 job_body['device_token'],
                 apns.Payload(**job_body['payload']),
                 self.push_id)
+        except apns.InvalidTokenError:
+            pass
         except Exception as e:
             logging.debug('Send notification error: %s' % e)
             job.release()
