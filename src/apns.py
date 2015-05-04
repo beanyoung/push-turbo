@@ -206,7 +206,7 @@ class GatewayConnection(APNsConnection):
     def get_notification(self, token_hex, payload, identifier, expiry):
         try:
             token = a2b_hex(token_hex)
-        except ValueError:
+        except TypeError:
             raise InvalidTokenError(token_hex)
         payload = payload.json()
         fmt = ENHANCED_NOTIFICATION_FORMAT % len(payload)
