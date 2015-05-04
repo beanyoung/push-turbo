@@ -170,7 +170,7 @@ class Pipe(object):
     def ok_to_stop(self):
         if self.master_worker:
             return False
-        if time.time() - self.last_push_time < 5:
+        if time.time() - self.last_push_time > 10:
             return True
         return False
 
