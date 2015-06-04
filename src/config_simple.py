@@ -4,10 +4,9 @@
 DEBUG = TRUE
 
 APPS = {
-    'demo_app_name': ('/path/to/cert', '/path/to/key'),
+    'demo_app_name': ('/path/to/cert', '/path/to/key', 10),
 }
 
-PIPE_CONNECTION_COUNT = 15
 BATCH_WORKER_COUNT = 10
 BEANSTALKD_HOST = '127.0.0.1'
 BEANSTALKD_PORT = 11300

@@ -199,8 +199,8 @@ class Pipe(object):
 if __name__ == '__main__':
     logging.basicConfig(
         format=config.LOGGING_FORMAT, level=config.LOGGING_LEVEL)
-    for app_name, pem_file in config.APPS.items():
-        for i in range(config.PIPE_CONNECTION_COUNT):
+    for app_name, pem_file, pip_count in config.APPS.items():
+        for i in range(pip_count):
             pipe = Pipe(
                 config.BEANSTALKD_HOST, config.BEANSTALKD_PORT,
                 config.PUSH_TUBE % app_name, config.APNS_HOST,
