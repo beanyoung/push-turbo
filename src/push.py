@@ -85,7 +85,6 @@ class Pipe(object):
             except (socket.error, IOError) as e:
                 logging.debug('Gateway connect error %s' % e)
             time.sleep(2)
-            continue
 
     def process_gateway_input(self):
         buff = self.gateway_connection.read(apns.ERROR_RESPONSE_LENGTH)
