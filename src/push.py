@@ -199,11 +199,11 @@ class Pipe(object):
 if __name__ == '__main__':
     logging.basicConfig(
         format=config.LOGGING_FORMAT, level=config.LOGGING_LEVEL)
-    for app_name, pem_file, pip_count in config.APPS.items():
-        for i in range(pip_count):
+    for app_name, app_config in config.APPS.items():
+        for i in range(app_config[2]):
             pipe = Pipe(
                 config.BEANSTALKD_HOST, config.BEANSTALKD_PORT,
                 config.PUSH_TUBE % app_name, config.APNS_HOST,
-                config.APNS_PORT, pem_file[1], pem_file[0], i == 0)
+                config.APNS_PORT, app_config[1], app_config[0], i == 0)
             t = Thread(target=pipe.run, name='%s.%d' % (app_name, i))
             t.start()
