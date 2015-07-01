@@ -48,6 +48,9 @@ def push_stats():
     ret = g.beanstalk.stats()
     ret['tubes'] = []
     for app_name in config.APPS.keys():
-        ret['tubes'].append(
-            g.beanstalk.stats_tube(config.PUSH_TUBE % app_name))
+        try:
+            ret['tubes'].append(
+                g.beanstalk.stats_tube(config.PUSH_TUBE % app_name))
+        except beanstalkc.CommandFailed:
+            continue
     return jsonify(ret)
