@@ -14,19 +14,24 @@ import beanstalkc
 import config
 
 
+logger = logging.getLogger()
+for log_handler in config.LOGGING_HANDLERS:
+    logger.addHandler(log_handler)
+
+
 def batch_push(host, port, watching_tube, using_tube):
-    logging.debug('Starting')
+    logger.debug('Starting')
     while True:
         # init beanstalk
         try:
             beanstalk = beanstalkc.Connection(host, port)
-            logging.debug('Connect to %s:%s success' % (host, port))
+            logger.debug('Connect to %s:%s success' % (host, port))
             beanstalk.watch(watching_tube)
             for tube in beanstalk.watching():
                 if tube != watching_tube:
                     beanstalk.ignore(tube)
         except beanstalkc.SocketError:
-            logging.debug('Connect to %s:%s failed' % (host, port))
+            logger.debug('Connect to %s:%s failed' % (host, port))
             time.sleep(2)
             continue
 
@@ -34,14 +39,14 @@ def batch_push(host, port, watching_tube, using_tube):
             while True:
                 job = beanstalk.reserve(timeout=10)
                 if not job:
-                    logging.debug('No job found. Sleep 2 seconds')
+                    logger.debug('No job found. Sleep 2 seconds')
                     time.sleep(2)
                     continue
-                logging.debug('Reserved job: %s %s' % (job.jid, job.body))
+                logger.debug('Reserved job: %s %s' % (job.jid, job.body))
                 try:
                     push_jobs = json.loads(job.body)
                 except ValueError:
-                    logging.debug(
+                    logger.debug(
                         'Failed to load job body: %s %s' % (job.jid, job.body))
                     job.bury()
 
@@ -56,16 +61,14 @@ def batch_push(host, port, watching_tube, using_tube):
                     beanstalk.put(
                         json.dumps(push_job), priority=priority, delay=delay)
                 job.delete()
-                logging.debug('Delete job: %s %s' % (job.jid, job.body))
+                logger.debug('Delete job: %s %s' % (job.jid, job.body))
         except beanstalkc.SocketError:
-            logging.debug('Server %s:%s is down' % (host, port))
+            logger.debug('Server %s:%s is down' % (host, port))
             time.sleep(2)
             continue
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        format=config.LOGGING_FORMAT, level=config.LOGGING_LEVEL)
     args = (
         config.BEANSTALKD_HOST,
         config.BEANSTALKD_PORT,
