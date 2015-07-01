@@ -19,11 +19,6 @@ import apns
 import config
 
 
-logger = logging.getLogger()
-for log_handler in config.LOGGING_HANDLERS:
-    logger.addHandler(log_handler)
-
-
 class Pipe(object):
     def __init__(
             self, beanstalkd_host, beanstalkd_port, tube,
@@ -53,7 +48,7 @@ class Pipe(object):
 
                 self.beanstalk = beanstalkc.Connection(
                     self.beanstalkd_host, self.beanstalkd_port)
-                logger.debug(
+                logging.debug(
                     'Connect to %s:%s success' % (
                         self.beanstalkd_host, self.beanstalkd_port))
                 self.beanstalk.watch(self.tube)
@@ -63,7 +58,7 @@ class Pipe(object):
                 self.beanstalk.use(tube)
                 return
             except beanstalkc.SocketError:
-                logger.debug(
+                logging.debug(
                     'Connect to %s:%s failed' % (
                         self.beanstalkd_host, self.beanstalkd_port))
                 time.sleep(2)
@@ -86,9 +81,9 @@ class Pipe(object):
                 if e.errno == ssl.SSL_ERROR_SSL:
                     self.gateway_invalid = True
                     time.sleep(3600)
-                    logger.debug('Invalid key')
+                    logging.debug('Invalid key')
             except (socket.error, IOError) as e:
-                logger.debug('Gateway connect error %s' % e)
+                logging.debug('Gateway connect error %s' % e)
             time.sleep(2)
 
     def process_gateway_input(self):
@@ -102,33 +97,33 @@ class Pipe(object):
                 while not self.pushed_buffer.empty():
                     identifier, job = self.pushed_buffer.get()
                     if found:
-                        logger.debug('Reput failed job %s' % identifier)
+                        logging.debug('Reput failed job %s' % identifier)
                         self.beanstalk.put(json.dumps(job))
                     elif identifier == error_identifier:
-                        logger.debug('Found error identifier %s' % identifier)
+                        logging.debug('Found error identifier %s' % identifier)
                         found = True
         elif len(buff) == 0:
-            logger.debug('Close by server')
+            logging.debug('Close by server')
         else:
-            logger.debug('Unexcepted read buf size %s' % len(buf))
+            logging.debug('Unexcepted read buf size %s' % len(buf))
 
     def push_job(self):
         job = self.beanstalk.reserve(timeout=10)
         if not job:
-            logger.debug('No job found')
+            logging.debug('No job found')
             return
-        logger.debug('Reserved job: %s %s' % (job.jid, job.body))
+        logging.debug('Reserved job: %s %s' % (job.jid, job.body))
         try:
             job_body = json.loads(job.body)
         except ValueError:
-            logger.debug(
+            logging.debug(
                 'Failed to loads job body: %s %s' % (job.jid, job.body))
             job.bury()
 
         # push job
         self.push_id += 1
         try:
-            logger.debug('Send notification: %s %s' % (job.jid, job.body))
+            logging.debug('Send notification: %s %s' % (job.jid, job.body))
             self.gateway_connection.send_notification(
                 job_body['device_token'],
                 apns.Payload(**job_body['payload']),
@@ -136,16 +131,16 @@ class Pipe(object):
         except apns.InvalidTokenError:
             pass
         except Exception as e:
-            logger.debug('Send notification error: %s' % e)
+            logging.debug('Send notification error: %s' % e)
             job.release()
             raise
         if self.pushed_buffer.full():
             self.pushed_buffer.get()
-        logger.debug('Enqueue pushed buffer: %s %s' % (job.jid, job.body))
+        logging.debug('Enqueue pushed buffer: %s %s' % (job.jid, job.body))
         self.pushed_buffer.put((self.push_id, job_body))
         self.last_push_time = time.time()
 
-        logger.debug('Delete job: %s %s' % (job.jid, job.body))
+        logging.debug('Delete job: %s %s' % (job.jid, job.body))
         job.delete()
 
     def reserve_and_push(self):
@@ -156,7 +151,7 @@ class Pipe(object):
                 [],
                 10)
             if rlist:
-                logger.debug('Start Reading from gateway')
+                logging.debug('Start Reading from gateway')
                 self.process_gateway_input()
                 self.gateway_connection.reconnect()
             elif wlist:
@@ -186,14 +181,14 @@ class Pipe(object):
         while True:
             try:
                 if not self.need_to_start():
-                    logger.debug('Sleepy')
+                    logging.debug('Sleepy')
                     time.sleep(30)
                     continue
-                logger.debug('Start to reserve and push')
+                logging.debug('Start to reserve and push')
                 self.init_gateway()
                 self.reserve_and_push()
                 self.gateway_connection.disconnect()
-                logger.debug('Stop to reserve and push')
+                logging.debug('Stop to reserve and push')
             except beanstalkc.SocketError:
                 self.init_beanstalk()
             except (ssl.SSLError, socket.error, IOError) as e:
@@ -201,6 +196,8 @@ class Pipe(object):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        format=config.LOGGING_FORMAT, level=config.LOGGING_LEVEL)
     for app_name, app_config in config.APPS.items():
         for i in range(app_config[2]):
             pipe = Pipe(
