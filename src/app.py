@@ -12,6 +12,7 @@ app.config.from_object('config')
 
 app.register_blueprint(api.api, url_prefix='/api')
 
+app.logger.setLevel(config.LOGGING_LEVEL)
 for log_handler in config.LOGGING_HANDLERS:
     app.logger.addHandler(log_handler)
 
