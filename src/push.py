@@ -19,7 +19,7 @@ import apns
 import config
 
 
-logger = loggin.getLogger()
+logger = logging.getLogger()
 for log_handler in config.LOGGING_HANDLERS:
     logger.addHandler(log_handler)
 
