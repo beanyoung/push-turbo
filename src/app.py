@@ -4,12 +4,16 @@
 from flask import Flask
 
 import api
+import config
 
 
 app = Flask(__name__)
 app.config.from_object('config')
 
 app.register_blueprint(api.api, url_prefix='/api')
+
+for log_handler in config.LOGGING_HANDLERS:
+    app.logger.addHandler(log_handler)
 
 
 if __name__ == '__main__':

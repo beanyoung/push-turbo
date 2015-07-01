@@ -19,6 +19,7 @@ BATCH_PUSH_TUBE = 'ios_batch_push'
 LOGGING_LEVEL = 10
 LOGGING_FORMAT = \
     '%(asctime)s - %(levelname)s - %(threadName)s - %(funcName)s - %(message)s'
+LOGGING_HANDLERS = []
 
 APNS_HOST = '127.0.0.1'
 APNS_PORT = 2190

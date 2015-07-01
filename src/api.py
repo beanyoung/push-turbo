@@ -4,7 +4,7 @@
 import json
 
 import beanstalkc
-from flask import Blueprint, jsonify, g, request
+from flask import Blueprint, current_app, jsonify, g, request
 
 import config
 
@@ -39,6 +39,7 @@ def push_jobs():
     else:
         g.beanstalk.use(config.BATCH_PUSH_TUBE)
         g.beanstalk.put(json.dumps(jobs))
+    current_app.logger.info(jobs)
     return jsonify(dict())
 
 
