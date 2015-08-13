@@ -25,19 +25,12 @@
 
 from binascii import a2b_hex
 import json
-from struct import pack
+from struct import pack, unpack
 
 from gevent import ssl, socket
 
 
-ERROR_RESPONSE_LENGTH = 6
-ERROR_RESPONSE_FORMAT = (
-    '!'  # network big-endian
-    'B'  # command
-    'B'  # status
-    'I'  # identifier
-)
-
+ENHANCED_NOTIFICATION_COMMAND = 1
 ENHANCED_NOTIFICATION_FORMAT = (
     '!'  # network big-endian
     'B'  # command
@@ -48,11 +41,15 @@ ENHANCED_NOTIFICATION_FORMAT = (
     'H'  # payload length
     '%ds'  # payload
 )
-
-ENHANCED_NOTIFICATION_COMMAND = 1
 MAX_PAYLOAD_LENGTH = 2048
 TOKEN_LENGTH = 32
 ERROR_RESPONSE_LENGTH = 6
+ERROR_RESPONSE_FORMAT = (
+    '!'  # network big-endian
+    'B'  # command
+    'B'  # status
+    'I'  # identifier
+)
 
 
 class APNsConnection(object):
