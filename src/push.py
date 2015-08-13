@@ -105,7 +105,7 @@ class Pipe(object):
         elif len(buff) == 0:
             logging.debug('Close by server')
         else:
-            logging.debug('Unexcepted read buf size %s' % len(buf))
+            logging.debug('Unexcepted read buf size %s' % len(buff))
 
     def push_job(self):
         job = self.beanstalk.reserve(timeout=10)
@@ -198,7 +198,7 @@ class Pipe(object):
                 logging.debug('Stop to reserve and push')
             except beanstalkc.SocketError:
                 self.init_beanstalk()
-            except (ssl.SSLError, socket.error, IOError) as e:
+            except (ssl.SSLError, socket.error, IOError):
                 pass
 
 

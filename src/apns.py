@@ -23,14 +23,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from binascii import a2b_hex, b2a_hex
-import copy
+from binascii import a2b_hex
 import json
-import logging
-from struct import pack, unpack
+from struct import pack
 
-import gevent
-from gevent import queue, ssl, socket, select
+from gevent import ssl, socket
 
 
 ERROR_RESPONSE_LENGTH = 6

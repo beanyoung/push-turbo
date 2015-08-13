@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-DEBUG = TRUE
+DEBUG = True
 
 APPS = {
     'demo_app_name': ('/path/to/cert', '/path/to/key', 10),
