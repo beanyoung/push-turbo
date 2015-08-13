@@ -113,6 +113,13 @@ class Pipe(object):
             logging.debug('No job found')
             return
         logging.debug('Reserved job: %s %s' % (job.jid, job.body))
+
+        # delete job that job age > 3 hours
+        if job.stats()['age'] > 10800:
+            logging.debug('Job: %s %s is too old.' % (job.jid, job.body))
+            job.delete()
+            return
+
         try:
             job_body = json.loads(job.body)
         except ValueError:
