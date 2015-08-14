@@ -63,6 +63,8 @@ class Pipe(object):
                         self.beanstalkd_host, self.beanstalkd_port))
                 time.sleep(2)
                 continue
+            except Exception as e:
+                logging.critical('Unknown init beanstalk error: %s' % e)
 
     def init_gateway(self):
         while True:
@@ -151,6 +153,7 @@ class Pipe(object):
         job.delete()
 
     def reserve_and_push(self):
+        logging.debug('Start reserving and pushing')
         while True:
             rlist, wlist, _ = select.select(
                 [self.gateway_connection.connection()],
@@ -158,10 +161,11 @@ class Pipe(object):
                 [],
                 10)
             if rlist:
-                logging.debug('Start Reading from gateway')
+                logging.debug('Start reading from gateway')
                 self.process_gateway_input()
                 self.gateway_connection.reconnect()
             elif wlist:
+                logging.debug('Start writing to gateway')
                 self.push_job()
 
             if self.ok_to_stop():
@@ -200,6 +204,8 @@ class Pipe(object):
                 self.init_beanstalk()
             except (ssl.SSLError, socket.error, IOError):
                 pass
+            except Exception as e:
+                self.critical('Unknown error: %s' % e)
 
 
 if __name__ == '__main__':
