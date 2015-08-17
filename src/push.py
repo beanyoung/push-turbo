@@ -41,6 +41,7 @@ class Pipe(object):
 
     def init_beanstalk(self):
         # init beanstalk
+        logging.debug('Init beanstalk start')
         while True:
             try:
                 if self.beanstalk:
@@ -56,6 +57,7 @@ class Pipe(object):
                     if tube != self.tube:
                         self.beanstalk.ignore(tube)
                 self.beanstalk.use(tube)
+                logging.debug('Init beanstalk end')
                 return
             except beanstalkc.SocketError:
                 logging.debug(
@@ -67,6 +69,7 @@ class Pipe(object):
                 logging.critical('Unknown init beanstalk error: %s' % e)
 
     def init_gateway(self):
+        logging.debug('Init gateway start')
         while True:
             try:
                 if not self.gateway_connection:
@@ -78,8 +81,10 @@ class Pipe(object):
                     )
                 else:
                     self.gateway_connection.reconnect()
+                logging.debug('Init gateway end')
                 return
             except ssl.SSLError as e:
+                logging.error('Init gateway error: %s' % e)
                 if e.errno == ssl.SSL_ERROR_SSL:
                     self.gateway_invalid = True
                     time.sleep(3600)
@@ -140,7 +145,7 @@ class Pipe(object):
         except apns.InvalidTokenError:
             pass
         except Exception as e:
-            logging.debug('Send notification error: %s' % e)
+            logging.debug('Unknown send notification error: %s' % e)
             job.release()
             raise
         if self.pushed_buffer.full():
@@ -153,7 +158,7 @@ class Pipe(object):
         job.delete()
 
     def reserve_and_push(self):
-        logging.debug('Start reserving and pushing')
+        logging.debug('Reserve and push start')
         while True:
             rlist, wlist, _ = select.select(
                 [self.gateway_connection.connection()],
@@ -200,10 +205,11 @@ class Pipe(object):
                 self.reserve_and_push()
                 self.gateway_connection.disconnect()
                 logging.debug('Stop to reserve and push')
-            except beanstalkc.SocketError:
+            except beanstalkc.SocketError as e:
+                logging.error('Beanstalkd connection error: %s' % e)
                 self.init_beanstalk()
             except (ssl.SSLError, socket.error, IOError):
-                pass
+                logging.error('Apns connection error: %s' % e)
             except Exception as e:
                 self.critical('Unknown error: %s' % e)
 
