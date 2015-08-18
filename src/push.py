@@ -208,7 +208,7 @@ class Pipe(object):
             except beanstalkc.SocketError as e:
                 logging.error('Beanstalkd connection error: %s' % e)
                 self.init_beanstalk()
-            except (ssl.SSLError, socket.error, IOError):
+            except (ssl.SSLError, socket.error, IOError) as e:
                 logging.error('Apns connection error: %s' % e)
             except Exception as e:
                 self.critical('Unknown error: %s' % e)
