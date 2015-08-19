@@ -25,6 +25,7 @@
 
 from binascii import a2b_hex
 import json
+import logging
 from struct import pack, unpack
 
 from gevent import ssl, socket
@@ -68,6 +69,7 @@ class APNsConnection(object):
         self.disconnect()
 
     def connect(self):
+        logging.debug('Connect to apns start')
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.connect((self.server, self.port))
         self._ssl = ssl.wrap_socket(
@@ -75,14 +77,17 @@ class APNsConnection(object):
             self.key_file,
             self.cert_file)
         self.connection_alive = True
+        logging.debug('Connect to apns end')
 
     def disconnect(self):
+        logging.debug('Disonnect from apns start')
         if self.connection_alive:
             if self._socket:
                 self._socket.close()
             if self._ssl:
                 self._ssl.close()
             self.connection_alive = False
+        logging.debug('Disonnect from apns end')
 
     def reconnect(self):
         self.disconnect()

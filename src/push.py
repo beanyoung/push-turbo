@@ -113,31 +113,32 @@ class Pipe(object):
             logging.debug('Close by server')
         else:
             logging.debug('Unexcepted read buf size %s' % len(buff))
+        logging.debug('Process gateway input end')
 
     def push_job(self):
         job = self.beanstalk.reserve(timeout=10)
         if not job:
             logging.debug('No job found')
             return
-        logging.debug('Reserved job: %s %s' % (job.jid, job.body))
 
         # delete job that job age > 3 hours
         if job.stats()['age'] > 10800:
-            logging.debug('Job: %s %s is too old.' % (job.jid, job.body))
+            logging.debug('Reserved too old job: %s' % job.body)
             job.delete()
             return
+        logging.debug('Reserved job: %s' % job.body)
 
         try:
             job_body = json.loads(job.body)
         except ValueError:
             logging.debug(
-                'Failed to loads job body: %s %s' % (job.jid, job.body))
+                'Failed to loads job body: %s' % job.body)
             job.bury()
 
         # push job
         self.push_id += 1
         try:
-            logging.debug('Send notification: %s %s' % (job.jid, job.body))
+            logging.debug('Send notification: %s %s' % (self.push_id, job.body))
             self.gateway_connection.send_notification(
                 job_body['device_token'],
                 apns.Payload(**job_body['payload']),
@@ -150,11 +151,11 @@ class Pipe(object):
             raise
         if self.pushed_buffer.full():
             self.pushed_buffer.get()
-        logging.debug('Enqueue pushed buffer: %s %s' % (job.jid, job.body))
+        logging.debug('Enqueue pushed buffer: %s' % self.push_id)
         self.pushed_buffer.put((self.push_id, job_body))
         self.last_push_time = time.time()
 
-        logging.debug('Delete job: %s %s' % (job.jid, job.body))
+        logging.debug('Delete job: %s %s' % (self.push_id, job.body))
         job.delete()
 
     def reserve_and_push(self):
