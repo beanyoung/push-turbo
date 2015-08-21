@@ -71,6 +71,7 @@ class APNsConnection(object):
     def connect(self):
         logging.debug('Connect to apns start')
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.settimeout(10)
         logging.debug('Connect to apns step 1')
         self._socket.connect((self.server, self.port))
         logging.debug('Connect to apns step 2')
