@@ -71,11 +71,14 @@ class APNsConnection(object):
     def connect(self):
         logging.debug('Connect to apns start')
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        logging.debug('Connect to apns step 1')
         self._socket.connect((self.server, self.port))
+        logging.debug('Connect to apns step 2')
         self._ssl = ssl.wrap_socket(
             self._socket,
             self.key_file,
             self.cert_file)
+        logging.debug('Connect to apns step 3')
         self.connection_alive = True
         logging.debug('Connect to apns end')
 
