@@ -139,10 +139,14 @@ class Pipe(object):
         self.push_id += 1
         try:
             logging.debug('Send notification: %s %s' % (self.push_id, job.body))
+            expire_seconds = job_body.get(
+                'expire_seconds', config.EXPIRE_SECONDS)
+            expiry = int(time.time()) + expire_seconds
             self.gateway_connection.send_notification(
                 job_body['device_token'],
                 apns.Payload(**job_body['payload']),
-                self.push_id)
+                self.push_id,
+                expiry)
         except apns.InvalidTokenError:
             pass
         except Exception as e:
@@ -212,7 +216,7 @@ class Pipe(object):
             except (ssl.SSLError, socket.error, IOError) as e:
                 logging.error('Apns connection error: %s' % e)
             except Exception as e:
-                self.critical('Unknown error: %s' % e)
+                logging.critical('Unknown error: %s' % e)
 
 
 if __name__ == '__main__':
