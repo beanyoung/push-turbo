@@ -176,7 +176,7 @@ class Payload(object):
         if self.content_available:
             d.update({'content-available': 1})
 
-        is self.mutable_content == 1 and \
+        if self.mutable_content == 1 and \
                 self.attachment:
             d['mutable-content'] = 1
             d['attachment'] = self.attachment
