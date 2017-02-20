@@ -112,13 +112,15 @@ class APNsConnection(object):
 class PayloadAlert(object):
     def __init__(
             self, body=None, action_loc_key=None, loc_key=None,
-            loc_args=None, launch_image=None):
+            loc_args=None, launch_image=None, title=None, subtitle=None):
         super(PayloadAlert, self).__init__()
         self.body = body
         self.action_loc_key = action_loc_key
         self.loc_key = loc_key
         self.loc_args = loc_args
         self.launch_image = launch_image
+        self.title = title
+        self.subtitle = subtitle
 
     def dict(self):
         d = {}
@@ -132,6 +134,10 @@ class PayloadAlert(object):
             d['loc-args'] = self.loc_args
         if self.launch_image:
             d['launch-image'] = self.launch_image
+        if self.title:
+            d['title'] = self.title
+        if self.subtitle:
+            d['subtitle'] = self.subtitle
         return d
 
 
@@ -139,7 +145,8 @@ class Payload(object):
     """A class representing an APNs message payload"""
     def __init__(
             self, alert=None, badge=None, sound=None, category=None,
-            custom={}, content_available=False):
+            custom={}, content_available=False, mutable_content=None,
+            attachment=None):
         super(Payload, self).__init__()
         self.alert = alert
         self.badge = badge
@@ -147,6 +154,8 @@ class Payload(object):
         self.category = category
         self.custom = custom
         self.content_available = content_available
+        self.mutable_content = mutable_content
+        self.attachment = attachment
         self._check_size()
 
     def dict(self):
@@ -166,6 +175,11 @@ class Payload(object):
 
         if self.content_available:
             d.update({'content-available': 1})
+
+        if self.mutable_content == 1 and \
+                self.attachment:
+            d['mutable-content'] = 1
+            d['attachment'] = self.attachment
 
         d = {'aps': d}
         d.update(self.custom)
